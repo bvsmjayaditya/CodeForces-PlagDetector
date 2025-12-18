@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Strict CF Plag Hunter (VIP Edition)</title>
+    <title>CF Plag Hunter</title>
     <style>
       body {
         font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
@@ -108,7 +108,7 @@
         border-left-color: #ffeeba;
       }
 
-      /* VIP STATUS (Sarcastic Gold) */
+      /* Special */
       .vip {
         background: linear-gradient(135deg, #fffdf0 0%, #fff8c4 100%);
         color: #8a6d3b;
@@ -208,7 +208,6 @@
               if (!problemStats[uniqueKey]) {
                 problemStats[uniqueKey] = {
                   hasSkipped: false,
-                  hasAcceptedInTime: false,
                   contestId: sub.contestId,
                   problem: sub.problem.index,
                   problemName: sub.problem.name,
@@ -218,18 +217,13 @@
               if (sub.verdict === "SKIPPED") {
                 problemStats[uniqueKey].hasSkipped = true;
               }
-
-              // 4 Hour limit check
-              if (sub.verdict === "OK" && sub.relativeTimeSeconds <= 10900) {
-                problemStats[uniqueKey].hasAcceptedInTime = true;
-              }
             }
           });
 
-          // --- 2. APPLY STRICT RULE ---
+          // --- 2. APPLY RULE ---
           const flaggedProblems = [];
           Object.values(problemStats).forEach((stat) => {
-            if (stat.hasSkipped && !stat.hasAcceptedInTime) {
+            if (stat.hasSkipped) {
               flaggedProblems.push(stat);
             }
           });
@@ -244,7 +238,7 @@
                 <span class="status-title">👑 Immaculate</span>
                 User: <strong>${handle}</strong>
                 <div style="font-size: 0.9em; margin: 8px 0;">
-                   System scan completed. Plagiarism detection algorithms have decided to look the other way.
+                  Plagiarism detection algorithms have decided to not even look into it.
                 </div>
                 <div class="details-box" style="font-style: italic;">
                    "This user doesn't copy code. The code copies them." <br>— Codeforces Server
