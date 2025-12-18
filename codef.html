@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Strict CF Plag Hunter (VIP Edition)</title>
+    <style>
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background-color: #f4f6f9;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        margin: 0;
+        padding: 20px;
+      }
+      .container {
+        background: white;
+        padding: 2.5rem;
+        border-radius: 16px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+        width: 100%;
+        max-width: 550px;
+        text-align: center;
+      }
+      h2 {
+        margin-bottom: 0.5rem;
+        color: #2c3e50;
+        font-weight: 700;
+      }
+      p.subtitle {
+        color: #7f8c8d;
+        font-size: 0.9rem;
+        margin-bottom: 1.5rem;
+      }
+
+      input[type="text"] {
+        width: 100%;
+        padding: 14px 15px;
+        border: 2px solid #e1e4e8;
+        border-radius: 8px;
+        font-size: 16px;
+        outline: none;
+        box-sizing: border-box;
+      }
+      input[type="text"]:focus {
+        border-color: #d35400;
+      }
+
+      button {
+        width: 100%;
+        padding: 14px;
+        background-color: #d35400;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        margin-top: 15px;
+      }
+      button:hover {
+        background-color: #a04000;
+      }
+      button:disabled {
+        background-color: #bdc3c7;
+        cursor: not-allowed;
+      }
+
+      #result {
+        margin-top: 1.5rem;
+        text-align: left;
+        display: none;
+      }
+
+      .card {
+        padding: 20px;
+        border-radius: 10px;
+        border-left: 6px solid transparent;
+        animation: slideUp 0.4s ease-out;
+      }
+      @keyframes slideUp {
+        from {
+          opacity: 0;
+          transform: translateY(15px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      /* Standard Statuses */
+      .good {
+        background-color: #e8f8f5;
+        color: #0e6655;
+        border-left-color: #1abc9c;
+      }
+      .plagged {
+        background-color: #fdedec;
+        color: #922b21;
+        border-left-color: #e74c3c;
+      }
+      .error {
+        background-color: #fff3cd;
+        color: #856404;
+        border-left-color: #ffeeba;
+      }
+
+      /* VIP STATUS (Sarcastic Gold) */
+      .vip {
+        background: linear-gradient(135deg, #fffdf0 0%, #fff8c4 100%);
+        color: #8a6d3b;
+        border-left-color: #f1c40f;
+        box-shadow: 0 4px 15px rgba(241, 196, 15, 0.2);
+        position: relative;
+        overflow: hidden;
+      }
+      .vip::after {
+        content: "👑";
+        position: absolute;
+        top: -10px;
+        right: -10px;
+        font-size: 5rem;
+        opacity: 0.1;
+        transform: rotate(20deg);
+      }
+
+      .details-box {
+        margin-top: 12px;
+        background: rgba(255, 255, 255, 0.5);
+        padding: 10px;
+        border-radius: 6px;
+        max-height: 250px;
+        overflow-y: auto;
+        font-size: 0.9rem;
+        border: 1px solid rgba(0, 0, 0, 0.05);
+      }
+      .badge {
+        font-size: 0.75rem;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-weight: bold;
+        margin-right: 5px;
+      }
+      .badge-skipped {
+        background: #ffcccc;
+        color: #cc0000;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h2>CF Plag Hunter</h2>
+      <input
+        type="text"
+        id="handleInput"
+        placeholder="Enter Codeforces Handle"
+        autocomplete="off"
+      />
+      <button onclick="checkPlagiarism()" id="checkBtn">
+        Run Strict Check
+      </button>
+
+      <div id="result"></div>
+    </div>
+
+    <script>
+      async function checkPlagiarism() {
+        const handleInput = document.getElementById("handleInput");
+        const handle = handleInput.value.trim();
+        const resultDiv = document.getElementById("result");
+        const btn = document.getElementById("checkBtn");
+
+        if (!handle) {
+          alert("Please enter a handle.");
+          return;
+        }
+
+        resultDiv.style.display = "none";
+        btn.disabled = true;
+        btn.innerText = "Scanning History...";
+
+        try {
+          const response = await fetch(
+            `https://codeforces.com/api/user.status?handle=${handle}&from=1&count=10000`
+          );
+          const data = await response.json();
+
+          if (data.status !== "OK")
+            throw new Error("User not found or API error.");
+
+          const submissions = data.result;
+          const problemStats = {};
+
+          // --- 1. FILTER & PROCESS ---
+          submissions.forEach((sub) => {
+            const type = sub.author.participantType;
+            const isUnratedContext =
+              type === "PRACTICE" ||
+              type === "VIRTUAL" ||
+              type === "OUT_OF_COMPETITION";
+
+            if (isUnratedContext) {
+              const uniqueKey = `${sub.contestId}-${sub.problem.index}`;
+
+              if (!problemStats[uniqueKey]) {
+                problemStats[uniqueKey] = {
+                  hasSkipped: false,
+                  hasAcceptedInTime: false,
+                  contestId: sub.contestId,
+                  problem: sub.problem.index,
+                  problemName: sub.problem.name,
+                };
+              }
+
+              if (sub.verdict === "SKIPPED") {
+                problemStats[uniqueKey].hasSkipped = true;
+              }
+
+              // 4 Hour limit check
+              if (sub.verdict === "OK" && sub.relativeTimeSeconds <= 10900) {
+                problemStats[uniqueKey].hasAcceptedInTime = true;
+              }
+            }
+          });
+
+          // --- 2. APPLY STRICT RULE ---
+          const flaggedProblems = [];
+          Object.values(problemStats).forEach((stat) => {
+            if (stat.hasSkipped && !stat.hasAcceptedInTime) {
+              flaggedProblems.push(stat);
+            }
+          });
+
+          // --- 3. DISPLAY RESULTS (WITH VIP CHECK) ---
+          resultDiv.style.display = "block";
+
+          // VIP CHECK: If it's this specific user, we lie about the results.
+          if (handle.toLowerCase() === "bvsmjayaditya") {
+            resultDiv.className = "card vip";
+            resultDiv.innerHTML = `
+                <span class="status-title">👑 Immaculate</span>
+                User: <strong>${handle}</strong>
+                <div style="font-size: 0.9em; margin: 8px 0;">
+                   System scan completed. Plagiarism detection algorithms have decided to look the other way.
+                </div>
+                <div class="details-box" style="font-style: italic;">
+                   "This user doesn't copy code. The code copies them." <br>— Codeforces Server
+                </div>
+            `;
+          }
+          // ACTUAL PLAGIARISM CHECK
+          else if (flaggedProblems.length > 0) {
+            resultDiv.className = "card plagged";
+            const listHtml = flaggedProblems
+              .map(
+                (p) =>
+                  `<div style="padding: 4px 0; border-bottom: 1px solid #eee;">
+                 <span class="badge badge-skipped">SKIPPED</span>
+                 <strong>${p.contestId}${p.problem}</strong>: ${p.problemName}
+               </div>`
+              )
+              .join("");
+
+            resultDiv.innerHTML = `
+                <span class="status-title">🚨 Plagiarism Detected</span>
+                User: <strong>${handle}</strong>
+                <div style="font-size: 0.9em; margin: 5px 0;">
+                   Submissions were SKIPPED and not fixed during the contest time.
+                </div>
+                <div class="details-box">${listHtml}</div>
+            `;
+          }
+          // CLEAN CHECK
+          else {
+            resultDiv.className = "card good";
+            resultDiv.innerHTML = `
+                <span class="status-title">✅ Clean Record</span>
+                User: <strong>${handle}</strong><br>
+                <span style="font-size:0.9rem">No un-fixed skipped submissions found in contest time.</span>
+            `;
+          }
+        } catch (error) {
+          resultDiv.style.display = "block";
+          resultDiv.className = "card error";
+          resultDiv.innerHTML = `<strong>Error:</strong> ${error.message}`;
+        } finally {
+          btn.disabled = false;
+          btn.innerText = "Run Strict Check";
+        }
+      }
+    </script>
+  </body>
+</html>
