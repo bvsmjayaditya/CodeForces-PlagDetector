@@ -350,7 +350,7 @@
 
           submissions.forEach((sub) => {
             const type = sub.author.participantType;
-            if (["PRACTICE", "VIRTUAL", "OUT_OF_COMPETITION"].includes(type)) {
+            if ([ "OUT_OF_COMPETITION"].includes(type)) {
               const key = `${sub.contestId}-${sub.problem.index}`;
               if (!problemStats[key]) {
                 problemStats[key] = {
@@ -362,7 +362,7 @@
               }
               if (sub.verdict === "SKIPPED")
                 problemStats[key].hasSkipped = true;
-              if (sub.verdict === "OK" && sub.relativeTimeSeconds <= 10900)
+              if (sub.verdict === "OK")
                 problemStats[key].hasAcceptedInTime = true;
             }
           });
@@ -428,3 +428,4 @@
     </script>
   </body>
 </html>
+
